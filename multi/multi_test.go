@@ -20,7 +20,7 @@ func TestNew(t *testing.T) {
 
 func TestLoggerDebug(t *testing.T) {
 	var buf bytes.Buffer
-	l := New("test: ", log.New(&buf, "", log.Lshortfile|log.Lmsgprefix), nil)
+	var l Logger = New("test: ", log.New(&buf, "", log.Lshortfile|log.Lmsgprefix), nil)
 	l.Debug("This is debug")
 	if want, got := "multi_test.go:24: DEBG test: This is debug\n", buf.String(); want != got {
 		t.Errorf("logger debug should match %q is %q", want, got)
