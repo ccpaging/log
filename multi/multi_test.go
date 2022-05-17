@@ -33,13 +33,13 @@ func TestLoggerNew(t *testing.T) {
 	var buf bytes.Buffer
 	ll := New("test: ", log.New(&buf, "", 0))
 	dup := ll.New("temp")
-	if want, got := &ll.los, &dup.los; want == got {
+	if want, got := &ll.logs, &dup.logs; want == got {
 		t.Errorf("logger new should has a new core %v is %v", want, got)
 	}
 
-	p1 := &l.los
+	p1 := &l.logs
 	l.CopyFrom(dup)
-	p2 := &l.los
+	p2 := &l.logs
 	if p1 != p2 {
 		t.Errorf("logger copyfrom should match %v is %v", p1, p2)
 	}

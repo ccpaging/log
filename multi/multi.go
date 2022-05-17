@@ -32,7 +32,7 @@ var errOutput = errors.New("No output")
 type Multi struct {
 	mu   sync.Mutex
 	name string
-	los  map[string]Outputter
+	logs map[string]Outputter
 	io.Closer
 }
 
@@ -40,13 +40,13 @@ type Multi struct {
 // module name will be written. The root variable sets the root logger.
 // The levels enables different levels' logger.
 func New(name string, output Outputter) *Multi {
-	los := make(map[string]Outputter)
+	logs := make(map[string]Outputter)
 	for _, level := range LevelStrings {
-		los[level] = output
+		logs[level] = output
 	}
 	return &Multi{
 		name: name,
-		los:  los,
+		logs: logs,
 	}
 }
 
@@ -58,7 +58,7 @@ func Default() *Multi {
 func Omitter(name string) *Multi {
 	return &Multi{
 		name: name,
-		los:  make(map[string]Outputter),
+		logs: make(map[string]Outputter),
 	}
 }
 
@@ -67,7 +67,7 @@ func (l *Multi) SetOutput(level string, out Outputter) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
-	l.los[level] = out
+	l.logs[level] = out
 }
 
 // New creates a new Multi Level Logger with a new name.
@@ -77,7 +77,7 @@ func (l *Multi) New(name string) *Multi {
 
 	return &Multi{
 		name: name,
-		los:  l.los,
+		logs: l.logs,
 	}
 }
 
@@ -87,17 +87,17 @@ func (l *Multi) CopyFrom(in *Multi) {
 	defer l.mu.Unlock()
 
 	// clear map
-	for key := range l.los {
-		delete(l.los, key)
+	for key := range l.logs {
+		delete(l.logs, key)
 	}
 	// copy from
-	for key, value := range in.los {
-		l.los[key] = value
+	for key, value := range in.logs {
+		l.logs[key] = value
 	}
 	l.Closer = in.Closer
 }
 
-// Close the logger writer if l.Closer is set.
+// Close the logger writer if l.Clogser is set.
 func (l *Multi) Close() {
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -107,8 +107,8 @@ func (l *Multi) Close() {
 	}
 
 	// clear map
-	for key := range l.los {
-		delete(l.los, key)
+	for key := range l.logs {
+		delete(l.logs, key)
 	}
 }
 
@@ -116,7 +116,7 @@ func (l *Multi) Loutput(calldepth int, level string, v ...any) error {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
-	if ll, ok := l.los[level]; ok {
+	if ll, ok := l.logs[level]; ok {
 		return ll.Output(2+calldepth, level+l.name+fmt.Sprint(v...))
 	}
 	return errOutput
@@ -126,7 +126,7 @@ func (l *Multi) Loutputf(calldepth int, level string, format string, v ...any) e
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
-	if ll, ok := l.los[level]; ok {
+	if ll, ok := l.logs[level]; ok {
 		return ll.Output(2+calldepth, level+l.name+fmt.Sprintf(format, v...))
 	}
 	return errOutput
@@ -136,7 +136,7 @@ func (l *Multi) Loutputln(calldepth int, level string, v ...any) error {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
-	if ll, ok := l.los[level]; ok {
+	if ll, ok := l.logs[level]; ok {
 		return ll.Output(2+calldepth, level+l.name+fmt.Sprintln(v...))
 	}
 	return errOutput
