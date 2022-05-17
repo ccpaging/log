@@ -4,22 +4,20 @@
 package multi
 
 import (
-	"fmt"
 	"os"
 )
 
-var global *Multi = New("root ", nil, nil)
+var global *Multi = Default()
 
-// Default returns the standard logger used by the package-level output functions.
-func Default() *Multi { return global }
+func Global() *Multi { return global }
 
-func InitGlobal(l *Multi) {
+func Redirect(l *Multi) {
 	global.CopyFrom(l)
 }
 
-func CloseGlobal() {
+func Restore() {
 	global.Close()
-	global.CopyFrom(New("root ", nil, nil))
+	global.CopyFrom(Default())
 }
 
 func Output(calldepth int, s string) error {
@@ -114,28 +112,4 @@ func Fatalln(v ...any) {
 	global.Loutputln(1, Lfatal, v...)
 	global.Close()
 	os.Exit(1)
-}
-
-// Panic is equivalent to Print() followed by a call to panic().
-func Panic(v ...any) {
-	s := fmt.Sprint(v...)
-	global.Loutput(1, Lpanic, s)
-	global.Close()
-	panic(s)
-}
-
-// Panicf is equivalent to Printf() followed by a call to panic().
-func Panicf(format string, v ...any) {
-	s := fmt.Sprintf(format, v...)
-	global.Loutput(1, Lpanic, s)
-	global.Close()
-	panic(s)
-}
-
-// Panicln is equivalent to Println() followed by a call to panic().
-func Panicln(v ...any) {
-	s := fmt.Sprintln(v...)
-	global.Loutputf(1, Lpanic, s)
-	global.Close()
-	panic(s)
 }

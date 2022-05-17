@@ -9,7 +9,6 @@ import (
 	"io"
 	"log"
 	"os"
-	"strings"
 	"sync"
 )
 
@@ -24,76 +23,51 @@ const (
 	Lwarn  string = "WARN "
 	Lerror string = "ERROR "
 	Lfatal string = "FATAL "
-	Lpanic string = "PANIC "
 )
 
-var levelStrings = []string{Ldebug, Ltrace, Linfo, Lwarn, Lerror, Lfatal}
-
-func ltoi(s string) int {
-	switch strings.ToLower(strings.Trim(s, " \r\n")) {
-	case "debug", Ldebug:
-		return 0
-	case "trace", Ltrace:
-		return 1
-	case "info", Linfo:
-		return 2
-	case "warn", "warning", Lwarn:
-		return 3
-	case "err", "error", Lerror:
-		return 4
-	case "fatal", Lfatal:
-		return 5
-	default:
-	}
-	return 2
-}
+var LevelStrings = []string{Ltrace, Ldebug, Linfo, Lwarn, Lerror, Lfatal}
 
 var errOutput = errors.New("No output")
 
 type Multi struct {
 	mu   sync.Mutex
 	name string
-	core map[string]*log.Logger
+	los  map[string]Outputter
 	io.Closer
 }
 
 // New creates a new Multi Level Logger. The name variable sets the
 // module name will be written. The root variable sets the root logger.
 // The levels enables different levels' logger.
-func New(name string, root *log.Logger, levels []string) *Multi {
-	if root == nil {
-		root = log.Default()
-		root.SetFlags(LstdFlags)
-	}
-
-	if levels == nil {
-		levels = levelStrings
-	}
-	core := make(map[string]*log.Logger)
-	for _, level := range levels {
-		core[level] = root
+func New(name string, output Outputter) *Multi {
+	los := make(map[string]Outputter)
+	for _, level := range LevelStrings {
+		los[level] = output
 	}
 	return &Multi{
 		name: name,
-		core: core,
+		los:  los,
 	}
 }
 
-func (l *Multi) Set(level string, logger *log.Logger) *log.Logger {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-
-	old := l.core[level]
-	l.core[level] = logger
-	return old
+// Default returns the standard logger used by the package-level output functions.
+func Default() *Multi {
+	return New("root ", log.Default())
 }
 
-func (l *Multi) Get(level string) (logger *log.Logger, ok bool) {
+func Omitter(name string) *Multi {
+	return &Multi{
+		name: name,
+		los:  make(map[string]Outputter),
+	}
+}
+
+// New creates a new Multi Level Logger with a new name.
+func (l *Multi) SetOutput(level string, out Outputter) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
-	logger, ok = l.core[level]
-	return
+	l.los[level] = out
 }
 
 // New creates a new Multi Level Logger with a new name.
@@ -103,7 +77,7 @@ func (l *Multi) New(name string) *Multi {
 
 	return &Multi{
 		name: name,
-		core: l.core,
+		los:  l.los,
 	}
 }
 
@@ -113,13 +87,14 @@ func (l *Multi) CopyFrom(in *Multi) {
 	defer l.mu.Unlock()
 
 	// clear map
-	for key := range l.core {
-		delete(l.core, key)
+	for key := range l.los {
+		delete(l.los, key)
 	}
 	// copy from
-	for key, value := range in.core {
-		l.core[key] = value
+	for key, value := range in.los {
+		l.los[key] = value
 	}
+	l.Closer = in.Closer
 }
 
 // Close the logger writer if l.Closer is set.
@@ -132,8 +107,8 @@ func (l *Multi) Close() {
 	}
 
 	// clear map
-	for key := range l.core {
-		delete(l.core, key)
+	for key := range l.los {
+		delete(l.los, key)
 	}
 }
 
@@ -141,7 +116,7 @@ func (l *Multi) Loutput(calldepth int, level string, v ...any) error {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
-	if ll, ok := l.core[level]; ok {
+	if ll, ok := l.los[level]; ok {
 		return ll.Output(2+calldepth, level+l.name+fmt.Sprint(v...))
 	}
 	return errOutput
@@ -151,7 +126,7 @@ func (l *Multi) Loutputf(calldepth int, level string, format string, v ...any) e
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
-	if ll, ok := l.core[level]; ok {
+	if ll, ok := l.los[level]; ok {
 		return ll.Output(2+calldepth, level+l.name+fmt.Sprintf(format, v...))
 	}
 	return errOutput
@@ -161,7 +136,7 @@ func (l *Multi) Loutputln(calldepth int, level string, v ...any) error {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
-	if ll, ok := l.core[level]; ok {
+	if ll, ok := l.los[level]; ok {
 		return ll.Output(2+calldepth, level+l.name+fmt.Sprintln(v...))
 	}
 	return errOutput
@@ -259,25 +234,4 @@ func (l *Multi) Fatalln(v ...any) {
 	l.Loutputln(1, Lfatal, v...)
 	l.Close()
 	os.Exit(1)
-}
-
-// Panic is equivalent to l.Print() followed by a call to panic().
-func (l *Multi) Panic(v ...any) {
-	s := fmt.Sprint(v...)
-	l.Loutput(1, Lpanic, s)
-	panic(s)
-}
-
-// Panicf is equivalent to l.Printf() followed by a call to panic().
-func (l *Multi) Panicf(format string, v ...any) {
-	s := fmt.Sprintf(format, v...)
-	l.Loutput(1, Lpanic, s)
-	panic(s)
-}
-
-// Panicln is equivalent to l.Println() followed by a call to panic().
-func (l *Multi) Panicln(v ...any) {
-	s := fmt.Sprintln(v...)
-	l.Loutput(1, Lpanic, s)
-	panic(s)
 }

@@ -3,6 +3,10 @@
 
 package multi
 
+type Outputter interface {
+	Output(calldepth int, s string) error
+}
+
 type Logger interface {
 	// Error is equivalent to Print() and logs the message at level Error.
 	Error(v ...any)
