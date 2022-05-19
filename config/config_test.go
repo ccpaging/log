@@ -11,9 +11,21 @@ import (
 	"github.com/ccpaging/log/multi"
 )
 
-var moduleLog = multi.Global().New("[module] ")
+var moduleLog = multi.Global().WithName("[module] ")
 
 const testLogFile = "_test.log"
+
+var builder = config.NewBuilder(&config.Config{
+	EnableConsole:    true,
+	ConsoleLevel:     "debug",
+	ConsoleAnsiColor: true,
+
+	EnableFile:      true,
+	FileLevel:       "info",
+	FileLocation:    testLogFile,
+	FileLimitSize:   "1024k",
+	FileBackupCount: 2,
+})
 
 func init() {
 	os.Remove(testLogFile)
@@ -27,18 +39,12 @@ func removeFile(t *testing.T, filename string) {
 }
 
 func TestConfig(t *testing.T) {
-	config := &config.Config{
-		EnableConsole:    true,
-		ConsoleLevel:     "debug",
-		ConsoleAnsiColor: true,
+	moduleLog.Debug("debug log. ", "key=", "value")
+	moduleLog.Info("info log. ", "key=", "value")
+	moduleLog.Warn("warning log. ", "key=", "value")
+	moduleLog.Error("error log. ", "key=", "value")
 
-		EnableFile:      true,
-		FileLevel:       "info",
-		FileLocation:    testLogFile,
-		FileLimitSize:   "1024k",
-		FileBackupCount: 2,
-	}
-	logger := config.MakeLogger("test: ")
+	logger := builder.Logger("test: ")
 
 	defer removeFile(t, testLogFile)
 
@@ -66,18 +72,17 @@ func TestConfig(t *testing.T) {
 
 func TestStdLogAt(t *testing.T) {
 	var buf bytes.Buffer
-	c := config.Default()
 
-	logAtInfo := c.StdLogAt("info", "test: ")
+	logAtInfo := builder.StdLogAt("info", "test: ")
 	logAtInfo.SetFlags(log.Lshortfile)
 	logAtInfo.SetOutput(&buf)
 	logAtInfo.Println("This is stdlog's Println")
-	if want, got := "INFO test: config_test.go:74: This is stdlog's Println\n", buf.String(); want != got {
+	if want, got := "INFO test: config_test.go:79: This is stdlog's Println\n", buf.String(); want != got {
 		t.Errorf("\nwant: %q\ngot:  %q", want, got)
 	}
 	buf.Reset()
 
-	logAtDebug := c.StdLogAt("trace", "test: ")
+	logAtDebug := builder.StdLogAt("trace", "test: ")
 	logAtDebug.Println("This is stdlog's trace")
 	if logAtDebug.Writer() != io.Discard {
 		t.Errorf("\nwant empty\ngot: %q", buf.String())

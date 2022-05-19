@@ -32,7 +32,7 @@ func TestLoggerNew(t *testing.T) {
 
 	var buf bytes.Buffer
 	ll := New("test: ", log.New(&buf, "", 0))
-	dup := ll.New("temp")
+	dup := ll.WithName("temp")
 	if want, got := &ll.logs, &dup.logs; want == got {
 		t.Errorf("logger new should has a new core %v is %v", want, got)
 	}

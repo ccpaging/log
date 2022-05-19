@@ -70,8 +70,8 @@ func (l *Multi) SetOutput(level string, out Outputter) {
 	l.logs[level] = out
 }
 
-// New creates a new Multi Level Logger with a new name.
-func (l *Multi) New(name string) *Multi {
+// WithName creates a new Multi Level Logger with a new name.
+func (l *Multi) WithName(name string) *Multi {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
