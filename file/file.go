@@ -109,11 +109,8 @@ func OpenFile(filePath string, limitSize int64, backupFiles int) (*File, error) 
 }
 
 func (f *File) close() (err error) {
-	if f.bufWriter != nil {
-		f.bufWriter.Flush()
-	}
-
 	if f.file != nil {
+		f.Flush()
 		err = f.file.Close()
 	}
 
@@ -159,6 +156,7 @@ func (f *File) write(b []byte) (n int, err error) {
 
 	if err == nil {
 		f.size += int64(n)
+		f.Flush()
 	}
 	return
 }
@@ -217,7 +215,7 @@ func (f *File) rolling(n int) {
 	os.Rename(f.FilePath, name+".1"+ext)
 }
 
-func (f *File) flush() {
+func (f *File) Flush() {
 	if f.bufWriter != nil {
 		f.bufWriter.Flush()
 		return
