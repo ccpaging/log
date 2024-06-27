@@ -215,14 +215,16 @@ func (f *File) rolling(n int) {
 	os.Rename(f.FilePath, name+".1"+ext)
 }
 
-func (f *File) Flush() {
+func (f *File) Flush() (err error) {
 	if f.bufWriter != nil {
-		f.bufWriter.Flush()
+		err = f.bufWriter.Flush()
 		return
 	}
 	if f.file != nil {
-		f.file.Sync()
+		err = f.file.Sync()
+		return
 	}
+	return
 }
 
 func (f *File) fileSize() int64 {
